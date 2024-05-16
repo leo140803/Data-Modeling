@@ -123,12 +123,10 @@
     </ul>
     <div class="tab-content">
         <div id="rawTable" class="tab-pane fade show active" style="width: 25vw;">
-            <h3>Raw Table Content Here</h3>
-            <p>Content for raw table will be dynamically loaded here.</p>
+            <h3>Raw Table</h3>
         </div>
         <div id="agrTable" class="tab-pane fade">
-            <h3>AGR Table Content Here</h3>
-            <p>Content for AGR table will be dynamically loaded here.</p>
+            <h3>AGR Table</h3>
         </div>
         <div id="rawGraph" class="tab-pane fade">
             <h3>Raw Graph</h3>
