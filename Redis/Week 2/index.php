@@ -171,6 +171,11 @@
             success: function(response) {
                 var response= JSON.parse(response);
                 if(response.status == 'success'){
+                    Swal.fire({
+                        title: response.status === 'success' ? 'Success' : 'Error',
+                        icon: response.status,
+                        text: response.msg
+                    });
                     var headers = response.titles;
                     var data = response.rawData;
                     var agrData= response.agrData;
@@ -276,12 +281,12 @@
                             }
                         }
                     })
+                    
                 }else{
                     Swal.fire({
                                 title : 'Error!',
                                 text : response.msg,
                                 icon : 'error',
-                                confirmButtonText : 'Cool'
                     });
                 };
                 },
