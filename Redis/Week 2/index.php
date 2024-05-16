@@ -131,11 +131,11 @@
             <p>Content for AGR table will be dynamically loaded here.</p>
         </div>
         <div id="rawGraph" class="tab-pane fade">
-            <h3>Raw Graph Content Here</h3>
+            <h3>Raw Graph</h3>
             <canvas id="rawGraphCanvas"></canvas>
         </div>
         <div id="agrGraph" class="tab-pane fade">
-            <h3>AGR Graph Content Here</h3>
+            <h3>AGR Graph</h3>
             <canvas id="agrGraphCanvas"></canvas>
         </div>
     </div>
