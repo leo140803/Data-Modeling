@@ -14,7 +14,7 @@
                 };
                 $redis->executeRaw(['DEL',$header]);
                 $redis->executeRaw(['DEL',$header.'agr']);
-                $redis->executeRaw(['TS.CREATE',$header, 'LABELS', 'data', 'norm']);
+                $redis->executeRaw(['TS.CREATE',$header, 'LABELS', 'data', 'raw']);
                 $redis->executeRaw(['TS.CREATE',$header.'agr', 'LABELS', 'data', 'agr']);
                 if(str_contains($header,'Average')){
                     $redis->executeRaw(['TS.CREATERULE',$header, $header.'agr','AGGREGATION', 'avg',31556952000]);
@@ -31,30 +31,39 @@
             while (($data = fgetcsv($csv, 0, ',')) !== false) {
                 list($month, $day, $year) = explode('/', $data[0]);
                 date_default_timezone_set("UTC");
-                $timestamp = strtotime($year.'-'.$month.'-'.$day.' 00:00:00')*1000;
-                for($i=1;$i<count($data);$i++){
-                    $redis->executeRaw(['TS.ADD',$headers[$i],$timestamp,$data[$i]]);
+                $dateString = sprintf('%04d-%02d-%02d 00:00:00', $year, $month, $day);
+                $timestamp = (new DateTime($dateString))->getTimestamp() * 1000;
+                for ($i = 1; $i < count($data); $i++) {
+                    $redis->executeRaw(['TS.ADD', $headers[$i], $timestamp, $data[$i]]);
                 }
             }
             $data = [];
             $dataagr = [];
-            foreach($headers as $header){
-                if($header == 'dt') continue;
-                $temp = $redis->executeRaw(['TS.RANGE',$header,'-','+']);
-                for($i = 0; $i < count($temp); $i++){
-                    if(isset($data[$i])==false){
-                        $data[$i][] = gmdate('d-M-Y',($temp[$i][0]/1000));
+
+            foreach ($headers as $header) {
+                if ($header == 'dt') continue;
+                $temp = $redis->executeRaw(['TS.RANGE', $header, '-', '+']);
+                foreach ($temp as $i => $entry) {
+                    $timestamp = $entry[0] / 1000;
+                    $value = round(floatval($entry[1]->getPayload()), 3);
+
+                    if (!isset($data[$i])) {
+                        $data[$i][] = gmdate('Y-m-d', $timestamp);
                     }
-                    $data[$i][] = round(floatval($temp[$i][1]->getPayload()),3);
+                    $data[$i][] = $value;
                 }
-                $tempagr = $redis->executeRaw(['TS.RANGE',$header.'agr','-','+']);
-                for($j = 0;$j < count($tempagr); $j++){
-                    if(isset($dataagr[$j])==false){
-                        $dataagr[$j][] = gmdate('d-M-Y',($tempagr[$j][0]/1000));
+                $tempagr = $redis->executeRaw(['TS.RANGE', $header . 'agr', '-', '+']);
+                foreach ($tempagr as $j => $entry) {
+                    $timestamp = $entry[0] / 1000;
+                    $value = round(floatval($entry[1]->getPayload()), 3);
+
+                    if (!isset($dataagr[$j])) {
+                        $dataagr[$j][] = gmdate('Y-m-d', $timestamp);
                     }
-                    $dataagr[$j][] = round(floatval($tempagr[$j][1]->getPayload()), 3);
+                    $dataagr[$j][] = $value;
                 }
-            };
+            }
+
             fclose($csv);
             echo json_encode(['status'=>'success', 'msg'=>'Success to Upload File!', 'rawData'=> $data, 'agrData'=> $dataagr, 'titles' => $headers]);
             exit;
@@ -115,10 +124,10 @@
             <a class="nav-link" data-toggle="tab" href="#agrTable">AGR</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#rawGraph">RAW Graph</a>
+            <a class="nav-link" data-toggle="tab" href="#rawChart">RAW Chart</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-toggle="tab" href="#agrGraph">AGR Graph</a>
+            <a class="nav-link" data-toggle="tab" href="#agrChart">AGR Chart</a>
         </li>
     </ul>
     <div class="tab-content">
@@ -128,13 +137,13 @@
         <div id="agrTable" class="tab-pane fade">
             <h3>AGR Table</h3>
         </div>
-        <div id="rawGraph" class="tab-pane fade">
-            <h3>Raw Graph</h3>
-            <canvas id="rawGraphCanvas"></canvas>
+        <div id="rawChart" class="tab-pane fade">
+            <h3>Raw Chart</h3>
+            <canvas id="rawChartCanvas"></canvas>
         </div>
-        <div id="agrGraph" class="tab-pane fade">
-            <h3>AGR Graph</h3>
-            <canvas id="agrGraphCanvas"></canvas>
+        <div id="agrChart" class="tab-pane fade">
+            <h3>AGR Chart</h3>
+            <canvas id="agrChartCanvas"></canvas>
         </div>
     </div>
 </div>
@@ -233,7 +242,7 @@
                         datasets: datasets
                     };
 
-                    var ctx = document.getElementById('rawGraphCanvas').getContext('2d');
+                    var ctx = document.getElementById('rawChartCanvas').getContext('2d');
                     new Chart(ctx, {
                         type: 'line',
                         data: chartData,
@@ -267,7 +276,7 @@
                         datasets: datasets
                     };
 
-                    var ctx = document.getElementById('agrGraphCanvas').getContext('2d');
+                    var ctx = document.getElementById('agrChartCanvas').getContext('2d');
                     new Chart(ctx, {
                         type: 'line', 
                         data: chartData,
