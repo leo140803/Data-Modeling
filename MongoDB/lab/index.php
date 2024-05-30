@@ -3,29 +3,22 @@ require 'vendor/autoload.php';
 
 $client = new MongoDB\Client("mongodb://localhost:27017");
 $resto = $client->latihan->restaurants;
-
+$cursor = $resto->find();
 if(isset($_POST["filter"])) {
     $filter = $_POST['filter'];
     $query = [];
-
-    // Handle borough filter
     if (!empty($filter['borough']) && $filter['borough'] !== 'all') {
         $query['borough'] = ['$in' => $filter['borough']];
     }
-
-    // Handle cuisine filter
     if (!empty($filter['cuisine'])) {
         $query['cuisine'] = ['$regex' => $filter['cuisine'], '$options' => 'i'];
     }
-
-    // Handle grade score filter
-    if (!empty($filter['grade'])) {
-        $query['grades.0.score'] = ['$lt' => intval($filter['grade'])];
+    if (isset($filter['grade']) && $filter['grade'] !== '') {
+        $grade = intval($filter['grade']);
+        $query['grades.0.score'] = ['$lt' => $grade];
     }
-
     $cursor = $resto->find($query);
     $data = [];
-
     foreach ($cursor as $restaurant) {
         $data[] = [
             'restaurant_id' => $restaurant['restaurant_id'],
@@ -33,10 +26,9 @@ if(isset($_POST["filter"])) {
             'address' => $restaurant['address']['street'] ?? 'N/A',
             'borough' => $restaurant['borough'],
             'cuisine' => $restaurant['cuisine'],
-            'last_grades' => $restaurant['grades'][0]['score'] . ' (' . $restaurant['grades'][0]['grade'] . ')'
+            'last_grades' => $restaurant['grades'][0]['score']
         ];
     }
-
     echo json_encode($data);
     exit;
 }
@@ -58,10 +50,12 @@ if(isset($_POST["filter"])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 </head>
 <body>
     <div class="container mt-5">
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="col">
                 <label for="borough" class="form-label">Filter Borough</label>
                 <select class="form-select" id="borough" multiple>
@@ -101,7 +95,7 @@ if(isset($_POST["filter"])) {
                         <td><?php echo htmlspecialchars($restaurant->address->street ?? 'N/A'); ?></td>
                         <td><?php echo htmlspecialchars($restaurant->borough); ?></td>
                         <td><?php echo htmlspecialchars($restaurant->cuisine); ?></td>
-                        <td><?php echo htmlspecialchars($restaurant->grades[0]->score. ' (' . $restaurant->grades[0]->grade . ")" ); ?></td>
+                        <td><?php echo htmlspecialchars($restaurant->grades[0]->score); ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -109,38 +103,73 @@ if(isset($_POST["filter"])) {
 
     </div>
     <script>
-        $(document).ready(function(){
-            var element = document.getElementById('borough');
+    $(document).ready(function() {
+        var element = document.getElementById('borough');
             var choices = new Choices(element, {
-                removeItemButton: true, // Allows for removal of items
-                searchEnabled: true, // Enable searching within the select
+                removeItemButton: true,
+                searchEnabled: true,
                 placeholderValue: 'Select boroughs',
-                shouldSort: false // Optional: turn off sorting if you prefer
-            });
-
-            $('#dataTable').DataTable({
-                "pagingType": "simple_numbers",
-                "order": [[0, "asc"]],
-                "lengthMenu": [10, 25, 50, 100],
-                "searching": false, 
-            });
-
-            $("#borough").change(function(event){
-                var borough = $("#borough").val();
-                var cuisine= $("#cuisine").val();
-                var grade= $("#grade").val();
-                $.ajax({
-                    method: "POST",
-                    data: {
-                        filter: [borough, cuisine, grade]
-                    },
-                    success: function(response){
-                        // var res= JSON.parse(response);
-                        console.log(response);
-                    }
-                })
-            })
+                shouldSort: false
         });
-    </script>
+        var dataTable = $('#dataTable').DataTable({
+            "pagingType": "simple_numbers",
+            "order": [[0, "asc"]],
+            "lengthMenu": [10, 25, 50, 100],
+            "searching": false
+        });
+
+        function applyFilters() {
+            var borough = $('#borough').val() || [];
+            var cuisine = $('#cuisine').val();
+            var grade = $('#grade').val();
+            Swal.fire({
+                title: 'Loading...',
+                text: 'Please wait while we filter the results',
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+            allowEnterKey: false
+            });
+            $.ajax({
+                method: "POST",
+                data: {
+                    filter: {
+                        borough: borough,
+                        cuisine: cuisine,
+                        grade: grade
+                    }
+                },
+                success: function(response) {
+                    Swal.close();
+                    var data = JSON.parse(response);
+
+                    dataTable.clear();
+
+                    if (data.length > 0) {
+                        data.forEach(function(item) {
+                            dataTable.row.add([
+                                item.restaurant_id,
+                                item.name,
+                                item.address,
+                                item.borough,
+                                item.cuisine,
+                                item.last_grades
+                            ]).draw();
+                        });
+                    } else {
+                        dataTable.draw();
+                    }
+                },
+                error: function() {
+                    alert('Error filtering data');
+                }
+            });
+        }
+        $("#borough, #cuisine, #grade").on('change', applyFilters);
+    });
+</script>
+
 </body>
 </html>
