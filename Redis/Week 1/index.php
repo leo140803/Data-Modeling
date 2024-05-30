@@ -1,7 +1,7 @@
 <?php
 
     require 'vendor/autoload.php';
-
+    
     use Predis\Client;
     $redis = new Client();
     $names= $redis->lrange('names', 0 , -1);
