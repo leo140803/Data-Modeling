@@ -12,10 +12,10 @@
 
     if (isset($_POST['filter'])) {
         $filter = $_POST['filter'];
-        $query = "MATCH (s1:Supplier)-[*..4]-(s2:Supplier)
-                WHERE s1.companyName = \$companyName AND s1 <> s2
-                RETURN s2.companyName as Competitor, count(*) as NoProducts
-                ORDER BY NoProducts DESC";
+        $query = "MATCH (s1:Supplier)-[:SUPPLIES]->(p1:Product)-[:PART_OF]->(c:Category)<-[:PART_OF]-(p2:Product)<-[:SUPPLIES]-(s2:Supplier)
+        WHERE s1.companyName = '$filter' AND s1 <> s2
+        RETURN s2.companyName as Competitor, count(s2) as NoProducts
+        ORDER BY NoProducts DESC";
         $params = ['companyName' => $filter];
         $result = $client->run($query, $params);
         $data = [];
